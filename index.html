@@ -6,15 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- React + ReactDOM UMD -->
+  <!-- React -->
   <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-
-  <!-- Recharts UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
-
-  <!-- Babel for JSX -->
+  <!-- Recharts (global object) -->
+  <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+  <!-- Babel -->
   <script src="https://cdn.jsdelivr.net/npm/babel-standalone@6.26.0/babel.min.js"></script>
 </head>
 <body class="min-h-screen bg-[#F4F1E6]">
@@ -22,12 +19,15 @@
 
   <script type="text/babel">
     const { useMemo, useState } = React;
-    const {
-      LineChart, Line, XAxis, YAxis, Tooltip,
-      ResponsiveContainer, CartesianGrid, Legend
-    } = Recharts;
+    const LineChart = Recharts.LineChart;
+    const Line = Recharts.Line;
+    const XAxis = Recharts.XAxis;
+    const YAxis = Recharts.YAxis;
+    const Tooltip = Recharts.Tooltip;
+    const ResponsiveContainer = Recharts.ResponsiveContainer;
+    const CartesianGrid = Recharts.CartesianGrid;
+    const Legend = Recharts.Legend;
 
-    // --- Utilities ---
     const fmtGBP = (n) => n.toLocaleString(undefined, { style: "currency", currency: "GBP", maximumFractionDigits: 2 });
 
     const frequencies = [
@@ -54,16 +54,14 @@
     ];
 
     function App() {
-      // Inputs
       const [amount, setAmount] = useState(3);
       const [frequency, setFrequency] = useState("monthly");
       const [years, setYears] = useState(30);
       const [applyAdminFees, setApplyAdminFees] = useState(true);
       const [selectedPreset, setSelectedPreset] = useState(null);
 
-      // Fixed model params (annualized model)
-      const annualReturnPct = 8;   // income rate
-      const reinvestPct     = 10;  // % of gross income reinvested
+      const annualReturnPct = 8;
+      const reinvestPct = 10;
 
       const { series, finalStats } = useMemo(() => {
         let principal = 0;
@@ -71,22 +69,19 @@
         let cumulativeAdminFees = 0;
         let cumulativeIncome = 0;
         let cumulativeDistributed = 0;
-
         const data = [];
 
-        // Annual contribution based on frequency
         const annualContribution = (() => {
           switch (frequency) {
-            case "oneoff":  return amount;      // contributes in year 1 only
+            case "oneoff": return amount;
             case "monthly": return amount * 12;
-            case "weekly":  return amount * 52;
-            case "daily":   return amount * 365;
-            default:        return 0;
+            case "weekly": return amount * 52;
+            case "daily": return amount * 365;
+            default: return 0;
           }
         })();
 
         for (let y = 0; y < years; y++) {
-          // 1) Contributions this year
           const contrib = (frequency === "oneoff" && y > 0) ? 0 : annualContribution;
           if (contrib > 0) {
             cumulativeContrib += contrib;
@@ -95,17 +90,14 @@
             principal += (contrib - initialFee);
           }
 
-          // 2) Annual income on invested principal (GROSS)
           const income = principal * (annualReturnPct / 100);
           cumulativeIncome += income;
 
-          // 3) Split income from GROSS
-          const adminOnIncome = applyAdminFees ? 0.10 * income : 0;         // 10% admin on income
+          const adminOnIncome = applyAdminFees ? 0.10 * income : 0;
           cumulativeAdminFees += adminOnIncome;
-          const reinvestAmt = (reinvestPct / 100) * income;                 // 10% reinvest
-          const distributeAmt = income - reinvestAmt - adminOnIncome;       // 80% to projects
+          const reinvestAmt = (reinvestPct / 100) * income;
+          const distributeAmt = income - reinvestAmt - adminOnIncome;
 
-          // 4) Principal grows only by reinvested portion
           principal += reinvestAmt;
           cumulativeDistributed += distributeAmt;
 
@@ -119,16 +111,7 @@
           });
         }
 
-        return {
-          series: data,
-          finalStats: {
-            principal,
-            cumulativeContrib,
-            cumulativeAdminFees,
-            cumulativeIncome,
-            cumulativeDistributed,
-          },
-        };
+        return { series: data, finalStats: { principal, cumulativeContrib, cumulativeAdminFees, cumulativeIncome, cumulativeDistributed } };
       }, [amount, frequency, years, applyAdminFees]);
 
       const last = finalStats;
@@ -137,16 +120,13 @@
         <div className="min-h-screen w-full text-[#02314B]">
           <div className="max-w-6xl mx-auto px-4 py-8">
             <header className="mb-6">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">
-                Waqf Monetary Value Calculator
-              </h1>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">Waqf Monetary Value Calculator</h1>
               <p className="mt-2 max-w-3xl text-[#406A5C]">
                 Explore how small, regular gifts can grow into a substantial <span className="font-semibold">waqf capital</span> over time.
                 This tool models the <span className="font-semibold">monetary value of the waqf</span> (principal) with options for admin fees.
               </p>
             </header>
 
-            {/* 1) Choose Waqf Share */}
             <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
               <label className="block text-sm font-medium mb-1">Choose a Waqf Share</label>
               <select
@@ -166,35 +146,27 @@
               </select>
             </section>
 
-            {/* 2) Contribution Settings */}
             <section className="grid md:grid-cols-2 gap-4 mb-8">
               <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
                 <label className="block text-sm font-medium mb-1">Contribution Amount (£)</label>
-                <input
-                  type="number" min={0} step={0.5} value={amount}
-                  onChange={(e) => { setSelectedPreset(null); setAmount(Number(e.target.value)); }}
-                  className="w-full border rounded-xl px-3 py-2"
-                />
+                <input type="number" min={0} step={0.5} value={amount}
+                       onChange={(e) => { setSelectedPreset(null); setAmount(Number(e.target.value)); }}
+                       className="w-full border rounded-xl px-3 py-2" />
 
                 <label className="block text-sm font-medium mt-4 mb-1">Frequency</label>
                 <div className="flex flex-wrap gap-2">
                   {frequencies.map((f) => (
-                    <button
-                      key={f.key}
-                      onClick={() => setFrequency(f.key)}
-                      className={`px-3 py-1.5 rounded-full border ${frequency===f.key ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
-                    >
+                    <button key={f.key} onClick={() => setFrequency(f.key)}
+                            className={`px-3 py-1.5 rounded-full border ${frequency===f.key?"bg-[#8B003A] text-white":"bg-white border-[#8B003A] text-[#8B003A]"}`}>
                       {f.label}
                     </button>
                   ))}
                 </div>
 
                 <label className="block text-sm font-medium mt-4 mb-1">Years</label>
-                <input
-                  type="number" min={1} max={100} value={years}
-                  onChange={(e)=>setYears(Number(e.target.value))}
-                  className="w-full border rounded-xl px-3 py-2"
-                />
+                <input type="number" min={1} max={100} value={years}
+                       onChange={(e)=>setYears(Number(e.target.value))}
+                       className="w-full border rounded-xl px-3 py-2" />
               </div>
 
               <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
@@ -203,11 +175,9 @@
                     <p className="text-sm font-medium">Apply Admin Fees</p>
                     <p className="text-xs text-[#406A5C]">10% of each contribution and 10% of income. Toggle off if covered by Support Fund.</p>
                   </div>
-                  <button
-                    onClick={()=>setApplyAdminFees(v=>!v)}
-                    className={`px-3 py-1.5 rounded-full border ${applyAdminFees ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
-                  >
-                    {applyAdminFees ? "On" : "Off"}
+                  <button onClick={()=>setApplyAdminFees(v=>!v)}
+                          className={`px-3 py-1.5 rounded-full border ${applyAdminFees?"bg-[#8B003A] text-white":"bg-white border-[#8B003A] text-[#8B003A]"}`}>
+                    {applyAdminFees?"On":"Off"}
                   </button>
                 </div>
 
@@ -220,7 +190,6 @@
               </div>
             </section>
 
-            {/* 3) Chart */}
             <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold text-[#8B003A]">Waqf Value Over Time</h2>
@@ -234,11 +203,7 @@
                     <CartesianGrid strokeDasharray="3 3" stroke="#F4E1C3" />
                     <XAxis dataKey="year" tickFormatter={(y)=>`Y${y}`} stroke="#02314B" />
                     <YAxis tickFormatter={(v)=>v.toFixed(0)} interval={0} domain={[0, 'auto']} tickCount={10} stroke="#02314B" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "#F4E1C3", color: "#02314B" }}
-                      formatter={(value, name) => [fmtGBP(Number(value)), name]}
-                      labelFormatter={(y)=>`Year ${y}`}
-                    />
+                    <Tooltip contentStyle={{ backgroundColor: "#F4E1C3", color: "#02314B" }} formatter={(value, name) => [fmtGBP(Number(value)), name]} labelFormatter={(y)=>`Year ${y}`} />
                     <Legend />
                     <Line type="monotone" dataKey="principal" name="Principal" dot={false} strokeWidth={2} />
                     <Line type="monotone" dataKey="cumulativeIncome" name="Income Generated" dot={false} strokeWidth={2} stroke="green" />
@@ -247,7 +212,6 @@
               </div>
             </section>
 
-            {/* Explainer */}
             <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
               <details>
                 <summary className="cursor-pointer font-semibold text-[#8B003A]">How the model works</summary>
