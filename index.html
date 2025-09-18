@@ -4,18 +4,60 @@
   <meta charset="utf-8" />
   <title>Waqf Monetary Value Calculator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Tailwind for styling -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React + ReactDOM UMD -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Recharts UMD -->
-  <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
-  <!-- Babel so we can write JSX inline -->
-  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+  <!-- React + ReactDOM UMD (jsDelivr) -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Recharts UMD (pin a version) -->
+  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
+
+  <!-- Babel for in-browser JSX -->
+  <script src="https://cdn.jsdelivr.net/npm/babel-standalone@6.26.0/babel.min.js"></script>
+
+  <style>
+    #errorBox{display:none;position:fixed;inset:0;background:#fff5f5;color:#8b0000;
+      border-top:4px solid #8b0000;padding:16px;z-index:9999;overflow:auto;font:14px/1.4 system-ui}
+    #okBox{position:fixed;bottom:8px;right:8px;background:#F4E1C3;color:#02314B;
+      padding:8px 10px;border-radius:8px;font:12px/1.2 system-ui;border:1px solid #e8caa3}
+  </style>
 </head>
+
 <body class="min-h-screen bg-[#F4F1E6]">
+  <noscript>
+    <div style="padding:16px;background:#fff5f5;color:#8b0000;">
+      This site needs JavaScript to run. Please enable JavaScript.
+    </div>
+  </noscript>
+
+  <div id="errorBox"></div>
+  <div id="okBox"></div>
   <div id="root"></div>
+
+  <script>
+    // Show runtime errors on the page so you don't need DevTools.
+    (function(){
+      const box = document.getElementById('errorBox');
+      window.addEventListener('error', function(e){
+        box.style.display='block';
+        box.innerHTML += '<div><b>Script Error:</b> ' + (e.message||'') +
+          '<br><small>' + (e.filename||'') + ':' + (e.lineno||'') + '</small></div>';
+      });
+      window.addEventListener('unhandledrejection', function(e){
+        box.style.display='block';
+        box.innerHTML += '<div><b>Promise Rejection:</b> ' + (e.reason && e.reason.message ? e.reason.message : e.reason) + '</div>';
+      });
+      // quick sanity check for libraries
+      const ok = document.getElementById('okBox');
+      function okLine(label, cond){ ok.innerHTML += (cond?'✅ ':'❌ ') + label + '<br>'; }
+      okLine('React OK', !!window.React);
+      okLine('ReactDOM OK', !!window.ReactDOM);
+      okLine('Babel OK', !!window.Babel);
+      okLine('Recharts OK', !!window.Recharts);
+    })();
+  </script>
 
   <script type="text/babel">
     const { useMemo, useState } = React;
@@ -54,7 +96,7 @@
       const [applyAdminFees, setApplyAdminFees] = useState(true);
       const [selectedPreset, setSelectedPreset] = useState(null);
 
-      // Fixed model params
+      // Fixed annualized model
       const annualReturnPct = 8;   // income rate
       const reinvestPct     = 10;  // % of gross income reinvested
 
@@ -67,10 +109,9 @@
 
         const data = [];
 
-        // Annual contribution based on frequency
         const annualContribution = (() => {
           switch (frequency) {
-            case "oneoff":  return amount;       // contributes in year 1 only
+            case "oneoff":  return amount;        // contributes in year 1 only
             case "monthly": return amount * 12;
             case "weekly":  return amount * 52;
             case "daily":   return amount * 365;
@@ -79,7 +120,6 @@
         })();
 
         for (let y = 0; y < years; y++) {
-          // 1) Contribution this year
           const contrib = (frequency === "oneoff" && y > 0) ? 0 : annualContribution;
           if (contrib > 0) {
             cumulativeContrib += contrib;
@@ -88,17 +128,16 @@
             principal += (contrib - initialFee);
           }
 
-          // 2) Annual income on invested principal (GROSS)
+          // Annual income on invested principal (GROSS)
           const income = principal * (annualReturnPct / 100);
           cumulativeIncome += income;
 
-          // 3) Split income: reinvest (10%), admin on income (10%), distribute (80%)
+          // Split income from GROSS (admin doesn't change principal; only reinvest does)
           const adminOnIncome = applyAdminFees ? 0.10 * income : 0;
           cumulativeAdminFees += adminOnIncome;
-          const reinvestAmt = (reinvestPct / 100) * income;  // from gross
+          const reinvestAmt = (reinvestPct / 100) * income;
           const distributeAmt = income - reinvestAmt - adminOnIncome;
 
-          // 4) Principal increases only by reinvested portion
           principal += reinvestAmt;
           cumulativeDistributed += distributeAmt;
 
@@ -112,16 +151,7 @@
           });
         }
 
-        return {
-          series: data,
-          finalStats: {
-            principal,
-            cumulativeContrib,
-            cumulativeAdminFees,
-            cumulativeIncome,
-            cumulativeDistributed,
-          },
-        };
+        return { series: data, finalStats: { principal, cumulativeContrib, cumulativeAdminFees, cumulativeIncome, cumulativeDistributed } };
       }, [amount, frequency, years, applyAdminFees]);
 
       const last = finalStats;
@@ -238,7 +268,6 @@
               </div>
             </section>
 
-            {/* Explainer */}
             <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
               <details>
                 <summary className="cursor-pointer font-semibold text-[#8B003A]">How the model works</summary>
