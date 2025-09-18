@@ -1,314 +1,228 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- Tailwind -->
-<script src="https://cdn.tailwindcss.com"></script>
-
-<!-- React + ReactDOM -->
-<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-
-<!-- PropTypes (required by Recharts UMD) -->
-<script src="https://cdn.jsdelivr.net/npm/prop-types@15/prop-types.min.js"></script>
-
-<!-- Recharts UMD -->
-<script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
-
-<!-- Babel (for JSX in-browser) -->
-<script src="https://cdn.jsdelivr.net/npm/babel-standalone@6.26.0/babel.min.js"></script>
-
   <meta charset="utf-8" />
   <title>Waqf Monetary Value Calculator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Tailwind (OK for demo on GH Pages) -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- React + ReactDOM UMD -->
+  <!-- React -->
   <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-  
-  <!-- Babel for in-browser JSX (OK for demo; precompile for production) -->
+  <!-- PropTypes (required for Recharts UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/prop-types@15/prop-types.min.js"></script>
+  <!-- Recharts (global object, pinned version) -->
+  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
+  <!-- Babel -->
   <script src="https://cdn.jsdelivr.net/npm/babel-standalone@6.26.0/babel.min.js"></script>
-
-  <!-- Recharts loader: try jsDelivr, then unpkg; start app only when loaded -->
-  <script>
-    (function loadRechartsAndStart(){
-      function load(src, cb){
-        var s=document.createElement('script');
-        s.src=src;
-        s.onload=cb;
-        s.onerror=function(){ cb(new Error('Failed to load: '+src)); };
-        document.head.appendChild(s);
-      }
-      function ensure(cb){
-        if (window.Recharts) return cb();
-        load('https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js', function(err){
-          if (window.Recharts) return cb();
-          load('https://unpkg.com/recharts/umd/Recharts.min.js', function(){
-            cb();
-          });
-        });
-      }
-      window.__startWaqfApp = function(){ /* defined in the Babel block */ };
-      ensure(function(){ if (typeof window.__startWaqfApp === 'function') window.__startWaqfApp(); });
-    })();
-  </script>
 </head>
 <body class="min-h-screen bg-[#F4F1E6]">
   <div id="root"></div>
 
-  <!-- Our app (wrapped in a starter that waits for Recharts) -->
   <script type="text/babel">
-    window.__startWaqfApp = function startApp(){
-      if (!window.Recharts) {
-        // If the loader hasn't attached Recharts yet, wait a tick.
-        setTimeout(startApp, 50);
-        return;
-      }
+    const { useMemo, useState } = React;
+    const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } = window.Recharts;
 
-      const { useMemo, useState } = React;
-      const {
-        LineChart, Line, XAxis, YAxis, Tooltip,
-        ResponsiveContainer, CartesianGrid, Legend
-      } = Recharts;
+    const fmtGBP = (n) => n.toLocaleString(undefined, { style: "currency", currency: "GBP", maximumFractionDigits: 2 });
 
-      const fmtGBP = (n) => n.toLocaleString(undefined, { style: "currency", currency: "GBP", maximumFractionDigits: 2 });
+    const frequencies = [
+      { key: "oneoff", label: "One-off" },
+      { key: "monthly", label: "Monthly" },
+      { key: "weekly", label: "Weekly" },
+      { key: "daily", label: "Daily" },
+    ];
 
-      const frequencies = [
-        { key: "oneoff", label: "One-off" },
-        { key: "monthly", label: "Monthly" },
-        { key: "weekly", label: "Weekly" },
-        { key: "daily", label: "Daily" },
-      ];
+    const sharePresets = [
+      { key: "emergency", name: "Emergency Aid Waqf", price: 100 },
+      { key: "food", name: "Food Aid Waqf", price: 100 },
+      { key: "orphans", name: "Orphans Care Waqf", price: 100 },
+      { key: "health", name: "Health Care Waqf", price: 100 },
+      { key: "livelihood", name: "Livelihood Support Waqf", price: 100 },
+      { key: "water", name: "Water Aid Waqf", price: 100 },
+      { key: "education", name: "Education Support Waqf", price: 100 },
+      { key: "general", name: "General Charity Waqf", price: 100 },
+      { key: "lightofsight", name: "Light of Sight Waqf", price: 4000 },
+      { key: "iftar", name: "Ramadan Iftar Waqf", price: 2000 },
+      { key: "qurbani", name: "Qurbani Waqf", price: 1800 },
+      { key: "sadaqah", name: "Sadaqah Jariyah (min)", price: 3 },
+      { key: "supportfund", name: "Waqf Support Fund (min)", price: 3 },
+    ];
 
-      const sharePresets = [
-        { key: "emergency", name: "Emergency Aid Waqf", price: 100 },
-        { key: "food", name: "Food Aid Waqf", price: 100 },
-        { key: "orphans", name: "Orphans Care Waqf", price: 100 },
-        { key: "health", name: "Health Care Waqf", price: 100 },
-        { key: "livelihood", name: "Livelihood Support Waqf", price: 100 },
-        { key: "water", name: "Water Aid Waqf", price: 100 },
-        { key: "education", name: "Education Support Waqf", price: 100 },
-        { key: "general", name: "General Charity Waqf", price: 100 },
-        { key: "lightofsight", name: "Light of Sight Waqf", price: 4000 },
-        { key: "iftar", name: "Ramadan Iftar Waqf", price: 2000 },
-        { key: "qurbani", name: "Qurbani Waqf", price: 1800 },
-        { key: "sadaqah", name: "Sadaqah Jariyah (min)", price: 3 },
-        { key: "supportfund", name: "Waqf Support Fund (min)", price: 3 },
-      ];
+    function App() {
+      const [amount, setAmount] = useState(3);
+      const [frequency, setFrequency] = useState("monthly");
+      const [years, setYears] = useState(30);
+      const [applyAdminFees, setApplyAdminFees] = useState(true);
+      const [selectedPreset, setSelectedPreset] = useState(null);
 
-      function App() {
-        // Inputs
-        const [amount, setAmount] = useState(3);
-        const [frequency, setFrequency] = useState("monthly");
-        const [years, setYears] = useState(30);
-        const [applyAdminFees, setApplyAdminFees] = useState(true);
-        const [selectedPreset, setSelectedPreset] = useState(null);
+      const annualReturnPct = 8;
+      const reinvestPct = 10;
 
-        // Annualised model
-        const annualReturnPct = 8;   // income rate
-        const reinvestPct     = 10;  // % of gross income reinvested
+      const { series, finalStats } = useMemo(() => {
+        let principal = 0;
+        let cumulativeContrib = 0;
+        let cumulativeAdminFees = 0;
+        let cumulativeIncome = 0;
+        let cumulativeDistributed = 0;
+        const data = [];
 
-        const { series, finalStats } = useMemo(() => {
-          let principal = 0;
-          let cumulativeContrib = 0;
-          let cumulativeAdminFees = 0;
-          let cumulativeIncome = 0;
-          let cumulativeDistributed = 0;
+        const annualContribution = (() => {
+          switch (frequency) {
+            case "oneoff": return amount;
+            case "monthly": return amount * 12;
+            case "weekly": return amount * 52;
+            case "daily": return amount * 365;
+            default: return 0;
+          }
+        })();
 
-          const data = [];
-
-          // Annual contribution by frequency
-          const annualContribution = (() => {
-            switch (frequency) {
-              case "oneoff":  return amount;      // contributes in year 1 only
-              case "monthly": return amount * 12;
-              case "weekly":  return amount * 52;
-              case "daily":   return amount * 365;
-              default:        return 0;
-            }
-          })();
-
-          for (let y = 0; y < years; y++) {
-            // 1) Contributions (minus initial admin) added to principal
-            const contrib = (frequency === "oneoff" && y > 0) ? 0 : annualContribution;
-            if (contrib > 0) {
-              cumulativeContrib += contrib;
-              const initialFee = applyAdminFees ? 0.10 * contrib : 0;
-              cumulativeAdminFees += initialFee;
-              principal += (contrib - initialFee);
-            }
-
-            // 2) Income (GROSS) on invested principal
-            const income = principal * (annualReturnPct / 100);
-            cumulativeIncome += income;
-
-            // 3) Split from GROSS income: 10% reinvest, 10% admin, 80% distribute
-            const adminOnIncome = applyAdminFees ? 0.10 * income : 0;
-            cumulativeAdminFees += adminOnIncome;
-            const reinvestAmt = (reinvestPct / 100) * income;
-            const distributeAmt = income - reinvestAmt - adminOnIncome;
-
-            // 4) Principal grows by reinvest only
-            principal += reinvestAmt;
-            cumulativeDistributed += distributeAmt;
-
-            data.push({
-              year: y + 1,
-              principal,
-              cumulativeContrib,
-              cumulativeAdminFees,
-              cumulativeIncome,
-              cumulativeDistributed,
-            });
+        for (let y = 0; y < years; y++) {
+          const contrib = (frequency === "oneoff" && y > 0) ? 0 : annualContribution;
+          if (contrib > 0) {
+            cumulativeContrib += contrib;
+            const initialFee = applyAdminFees ? 0.10 * contrib : 0;
+            cumulativeAdminFees += initialFee;
+            principal += (contrib - initialFee);
           }
 
-          return {
-            series: data,
-            finalStats: {
-              principal,
-              cumulativeContrib,
-              cumulativeAdminFees,
-              cumulativeIncome,
-              cumulativeDistributed,
-            },
-          };
-        }, [amount, frequency, years, applyAdminFees]);
+          const income = principal * (annualReturnPct / 100);
+          cumulativeIncome += income;
 
-        const last = finalStats;
+          const adminOnIncome = applyAdminFees ? 0.10 * income : 0;
+          cumulativeAdminFees += adminOnIncome;
+          const reinvestAmt = (reinvestPct / 100) * income;
+          const distributeAmt = income - reinvestAmt - adminOnIncome;
 
-        return (
-          <div className="min-h-screen w-full text-[#02314B]">
-            <div className="max-w-6xl mx-auto px-4 py-8">
-              <header className="mb-6">
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">
-                  Waqf Monetary Value Calculator
-                </h1>
-                <p className="mt-2 max-w-3xl text-[#406A5C]">
-                  Explore how small, regular gifts can grow into a substantial <span className="font-semibold">waqf capital</span> over time.
-                  This tool models the <span className="font-semibold">monetary value of the waqf</span> (principal) with options for admin fees.
-                </p>
-              </header>
+          principal += reinvestAmt;
+          cumulativeDistributed += distributeAmt;
 
-              {/* 1) Choose Waqf Share */}
-              <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
-                <label className="block text-sm font-medium mb-1">Choose a Waqf Share</label>
-                <select
-                  className="w-full border rounded-xl px-3 py-2"
-                  value={selectedPreset || ""}
-                  onChange={(e) => {
-                    const key = e.target.value;
-                    setSelectedPreset(key);
-                    const preset = sharePresets.find((p) => p.key === key);
-                    if (preset) setAmount(preset.price);
-                  }}
-                >
-                  <option value="">-- Select a Share --</option>
-                  {sharePresets.map((p) => (
-                    <option key={p.key} value={p.key}>{p.name} (£{p.price})</option>
-                  ))}
-                </select>
-              </section>
+          data.push({
+            year: y + 1,
+            principal,
+            cumulativeContrib,
+            cumulativeAdminFees,
+            cumulativeIncome,
+            cumulativeDistributed,
+          });
+        }
 
-              {/* 2) Contribution Settings */}
-              <section className="grid md:grid-cols-2 gap-4 mb-8">
-                <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
-                  <label className="block text-sm font-medium mb-1">Contribution Amount (£)</label>
-                  <input
-                    type="number" min={0} step={0.5} value={amount}
-                    onChange={(e) => { setSelectedPreset(null); setAmount(Number(e.target.value)); }}
-                    className="w-full border rounded-xl px-3 py-2"
-                  />
+        return { series: data, finalStats: { principal, cumulativeContrib, cumulativeAdminFees, cumulativeIncome, cumulativeDistributed } };
+      }, [amount, frequency, years, applyAdminFees]);
 
-                  <label className="block text-sm font-medium mt-4 mb-1">Frequency</label>
-                  <div className="flex flex-wrap gap-2">
-                    {frequencies.map((f) => (
-                      <button
-                        key={f.key}
-                        onClick={() => setFrequency(f.key)}
-                        className={`px-3 py-1.5 rounded-full border ${frequency===f.key ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
+      const last = finalStats;
 
-                  <label className="block text-sm font-medium mt-4 mb-1">Years</label>
-                  <input
-                    type="number" min={1} max={100} value={years}
-                    onChange={(e)=>setYears(Number(e.target.value))}
-                    className="w-full border rounded-xl px-3 py-2"
-                  />
-                </div>
+      return (
+        <div className="min-h-screen w-full text-[#02314B]">
+          <div className="max-w-6xl mx-auto px-4 py-8">
+            <header className="mb-6">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">Waqf Monetary Value Calculator</h1>
+              <p className="mt-2 max-w-3xl text-[#406A5C]">
+                Explore how small, regular gifts can grow into a substantial <span className="font-semibold">waqf capital</span> over time.
+                This tool models the <span className="font-semibold">monetary value of the waqf</span> (principal) with options for admin fees.
+              </p>
+            </header>
 
-                <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Apply Admin Fees</p>
-                      <p className="text-xs text-[#406A5C]">10% of each contribution and 10% of income. Toggle off if covered by Support Fund.</p>
-                    </div>
-                    <button
-                      onClick={()=>setApplyAdminFees(v=>!v)}
-                      className={`px-3 py-1.5 rounded-full border ${applyAdminFees ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
-                    >
-                      {applyAdminFees ? "On" : "Off"}
+            <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
+              <label className="block text-sm font-medium mb-1">Choose a Waqf Share</label>
+              <select
+                className="w-full border rounded-xl px-3 py-2"
+                value={selectedPreset || ""}
+                onChange={(e) => {
+                  const key = e.target.value;
+                  setSelectedPreset(key);
+                  const preset = sharePresets.find((p) => p.key === key);
+                  if (preset) setAmount(preset.price);
+                }}
+              >
+                <option value="">-- Select a Share --</option>
+                {sharePresets.map((p) => (
+                  <option key={p.key} value={p.key}>{p.name} (£{p.price})</option>
+                ))}
+              </select>
+            </section>
+
+            <section className="grid md:grid-cols-2 gap-4 mb-8">
+              <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
+                <label className="block text-sm font-medium mb-1">Contribution Amount (£)</label>
+                <input type="number" min={0} step={0.5} value={amount}
+                       onChange={(e) => { setSelectedPreset(null); setAmount(Number(e.target.value)); }}
+                       className="w-full border rounded-xl px-3 py-2" />
+
+                <label className="block text-sm font-medium mt-4 mb-1">Frequency</label>
+                <div className="flex flex-wrap gap-2">
+                  {frequencies.map((f) => (
+                    <button key={f.key} onClick={() => setFrequency(f.key)}
+                            className={`px-3 py-1.5 rounded-full border ${frequency===f.key?"bg-[#8B003A] text-white":"bg-white border-[#8B003A] text-[#8B003A]"}`}>
+                      {f.label}
                     </button>
-                  </div>
-
-                  <div className="mt-4 text-sm text-[#02314B] space-y-1">
-                    <p>Final Principal: <span className="font-semibold">{fmtGBP(last.principal)}</span></p>
-                    <p>Total Contributed: {fmtGBP(last.cumulativeContrib)}</p>
-                    <p>Admin Fees Total: {fmtGBP(last.cumulativeAdminFees)}</p>
-                    <p>Income Generated: {fmtGBP(last.cumulativeIncome)}</p>
-                  </div>
+                  ))}
                 </div>
-              </section>
 
-              {/* 3) Chart */}
-              <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold text-[#8B003A]">Waqf Value Over Time</h2>
-                  <div className="text-sm text-[#406A5C] text-right">
-                    Model assumptions: <span className="font-medium">8% annual income</span> and <span className="font-medium">10% reinvestment</span>
-                  </div>
-                </div>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={series} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F4E1C3" />
-                      <XAxis dataKey="year" tickFormatter={(y)=>`Y${y}`} stroke="#02314B" />
-                      <YAxis tickFormatter={(v)=>v.toFixed(0)} interval={0} domain={[0, 'auto']} tickCount={10} stroke="#02314B" />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "#F4E1C3", color: "#02314B" }}
-                        formatter={(value, name) => [fmtGBP(Number(value)), name]}
-                        labelFormatter={(y)=>`Year ${y}`}
-                      />
-                      <Legend />
-                      <Line type="monotone" dataKey="principal" name="Principal" dot={false} strokeWidth={2} />
-                      <Line type="monotone" dataKey="cumulativeIncome" name="Income Generated" dot={false} strokeWidth={2} stroke="green" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </section>
+                <label className="block text-sm font-medium mt-4 mb-1">Years</label>
+                <input type="number" min={1} max={100} value={years}
+                       onChange={(e)=>setYears(Number(e.target.value))}
+                       className="w-full border rounded-xl px-3 py-2" />
+              </div>
 
-              {/* Explainer */}
-              <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
-                <details>
-                  <summary className="cursor-pointer font-semibold text-[#8B003A]">How the model works</summary>
-                  <div className="prose max-w-none mt-2 text-sm text-[#02314B]">
-                    <p><strong>Contributions:</strong> Based on your frequency. If admin fees are applied, 10% of each contribution is taken as an initial fee; the remaining 90% is added to principal.</p>
-                    <p><strong>Income & compounding:</strong> Each year, income = principal × annual return. If admin fees are applied, 10% of that income is also taken. The remainder is split into reinvestment (10% of gross income) and distribution (80%).</p>
-                    <p><strong>Waqf note:</strong> Classical waqf aims to preserve capital and deploy income. With a fixed reinvestment rate of 10%, the capital gradually grows while still distributing most income.</p>
+              <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Apply Admin Fees</p>
+                    <p className="text-xs text-[#406A5C]">10% of each contribution and 10% of income. Toggle off if covered by Support Fund.</p>
                   </div>
-                </details>
-              </section>
-            </div>
+                  <button onClick={()=>setApplyAdminFees(v=>!v)}
+                          className={`px-3 py-1.5 rounded-full border ${applyAdminFees?"bg-[#8B003A] text-white":"bg-white border-[#8B003A] text-[#8B003A]"}`}>
+                    {applyAdminFees?"On":"Off"}
+                  </button>
+                </div>
+
+                <div className="mt-4 text-sm text-[#02314B] space-y-1">
+                  <p>Final Principal: <span className="font-semibold">{fmtGBP(last.principal)}</span></p>
+                  <p>Total Contributed: {fmtGBP(last.cumulativeContrib)}</p>
+                  <p>Admin Fees Total: {fmtGBP(last.cumulativeAdminFees)}</p>
+                  <p>Income Generated: {fmtGBP(last.cumulativeIncome)}</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-[#8B003A]">Waqf Value Over Time</h2>
+                <div className="text-sm text-[#406A5C] text-right">
+                  Model assumptions: <span className="font-medium">8% annual income</span> and <span className="font-medium">10% reinvestment</span>
+                </div>
+              </div>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={series} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F4E1C3" />
+                    <XAxis dataKey="year" tickFormatter={(y)=>`Y${y}`} stroke="#02314B" />
+                    <YAxis tickFormatter={(v)=>v.toFixed(0)} interval={0} domain={[0, 'auto']} tickCount={10} stroke="#02314B" />
+                    <Tooltip contentStyle={{ backgroundColor: "#F4E1C3", color: "#02314B" }} formatter={(value, name) => [fmtGBP(Number(value)), name]} labelFormatter={(y)=>`Year ${y}`} />
+                    <Legend />
+                    <Line type="monotone" dataKey="principal" name="Principal" dot={false} strokeWidth={2} />
+                    <Line type="monotone" dataKey="cumulativeIncome" name="Income Generated" dot={false} strokeWidth={2} stroke="green" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
+              <details>
+                <summary className="cursor-pointer font-semibold text-[#8B003A]">How the model works</summary>
+                <div className="prose max-w-none mt-2 text-sm text-[#02314B]">
+                  <p><strong>Contributions:</strong> Based on your frequency. If admin fees are applied, 10% of each contribution is taken as an initial fee; the remaining 90% is added to principal.</p>
+                  <p><strong>Income & compounding:</strong> Each year, income = principal × annual return. If admin fees are applied, 10% of that income is also taken. The remainder is split into reinvestment (10% of gross income) and distribution (80%).</p>
+                  <p><strong>Waqf note:</strong> Classical waqf aims to preserve capital and deploy income. With a fixed reinvestment rate of 10%, the capital gradually grows while still distributing most income.</p>
+                </div>
+              </details>
+            </section>
           </div>
-        );
-      }
+        </div>
+      );
+    }
 
-      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-    }; // end __startWaqfApp
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
 </html>
