@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Waqf Monetary Value Calculator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind CDN (for styles) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React + ReactDOM UMD -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Recharts UMD -->
+  <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+  <!-- Babel (so we can write JSX right here) -->
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body class="min-h-screen bg-[#F4F1E6]">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useMemo, useState } = React;
+    const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } = Recharts;
+
+    // --- Utilities ---
+    const fmtGBP = (n) => n.toLocaleString(undefined, { style: "currency", currency: "GBP", maximumFractionDigits: 2 });
+    const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+
+    const frequencies = [
+      { key: "oneoff", label: "One-off" },
+      { key: "monthly", label: "Monthly" },
+      { key: "weekly", label: "Weekly" },
+      { key: "daily", label: "Daily" },
+    ];
+
+    const sharePresets = [
+      { key: "emergency", name: "Emergency Aid Waqf", price: 100 },
+      { key: "food", name: "Food Aid Waqf", price: 100 },
+      { key: "orphans", name: "Orphans Care Waqf", price: 100 },
+      { key: "health", name: "Health Care Waqf", price: 100 },
+      { key: "livelihood", name: "Livelihood Support Waqf", price: 100 },
+      { key: "water", name: "Water Aid Waqf", price: 100 },
+      { key: "education", name: "Education Support Waqf", price: 100 },
+      { key: "general", name: "General Charity Waqf", price: 100 },
+      { key: "lightofsight", name: "Light of Sight Waqf", price: 4000 },
+      { key: "iftar", name: "Ramadan Iftar Waqf", price: 2000 },
+      { key: "qurbani", name: "Qurbani Waqf", price: 1800 },
+      { key: "sadaqah", name: "Sadaqah Jariyah (min)", price: 3 },
+      { key: "supportfund", name: "Waqf Support Fund (min)", price: 3 },
+    ];
+
+    function WaqfValueCalculator() {
+      // --- Inputs ---
+      const [amount, setAmount] = useState(3);
+      const [frequency, setFrequency] = useState("monthly");
+      const [years, setYears] = useState(30);
+      const [applyAdminFees, setApplyAdminFees] = useState(true); // 10% initial + 10% annual income
+      const [selectedPreset, setSelectedPreset] = useState(null);
+
+      // --- Fixed model params ---
+      const annualReturnPct = 8;  // fixed expected nominal return
+      const reinvestPct = 10;     // fixed reinvestment percentage
+
+      const months = clamp(Math.round(years * 12), 1, 100 * 12);
+      const rMonthly = (annualReturnPct / 100) / 12;
+      const reinvestRate = reinvestPct / 100;
+
+      const { series, finalStats } = useMemo(() => {
+        let principal = 0;
+
+        let cumulativeContrib = 0;
+        let cumulativeAdminFees = 0;
+        let cumulativeIncome = 0;       // total income generated (pre-distribution)
+        let cumulativeDistributed = 0;  // paid out after fees (not reinvested)
+
+        const data = [];
+
+        const monthlyContribution = (freq) => {
+          switch (freq) {
+            case "oneoff":   return 0;                    // handled separately in month 0
+            case "monthly":  return amount;
+            case "weekly":   return (amount * 52) / 12;   // monthly equivalent
+            case "daily":    return (amount * 365) / 12;  // monthly equivalent
+            default:         return 0;
+          }
+        };
+
+        const contribPerMonth = monthlyContribution(frequency);
+
+        for (let m = 0; m <= months; m++) {
+          // 1) Contributions this month
+          let contrib = (m === 0)
+            ? (frequency === "oneoff" ? amount : contribPerMonth)
+            : (frequency === "oneoff" ? 0 : contribPerMonth);
+
+          if (contrib > 0) {
+            cumulativeContrib += contrib;
+            const initialFee = applyAdminFees ? 0.10 * contrib : 0;
+            cumulativeAdminFees += initialFee;
+            principal += (contrib - initialFee);
+          }
+
+          // 2) Income on opening principal
+          const income = principal * rMonthly;
+          cumulativeIncome += income;
+
+          // 3) Admin on income
+          const adminOnIncome = applyAdminFees ? 0.10 * income : 0;
+          cumulativeAdminFees += adminOnIncome;
+          const netIncome = Math.max(income - adminOnIncome, 0);
+
+          // 4) Split income
+          const reinvestAmt = netIncome * reinvestRate;
+          const distributeAmt = netIncome - reinvestAmt;
+
+          // 5) Update principal and distributed
+          principal += reinvestAmt;
+          cumulativeDistributed += distributeAmt;
+
+          data.push({
+            month: m,
+            year: (m / 12).toFixed(2),
+            principal,
+            cumulativeContrib,
+            cumulativeAdminFees,
+            cumulativeIncome,
+            cumulativeDistributed,
+          });
+        }
+
+        return {
+          series: data,
+          finalStats: {
+            principal,
+            cumulativeContrib,
+            cumulativeAdminFees,
+            cumulativeIncome,
+            cumulativeDistributed,
+          },
+        };
+      }, [amount, frequency, months, rMonthly, reinvestRate, applyAdminFees]);
+
+      const last = finalStats;
+
+      return (
+        <div className="min-h-screen w-full text-[#02314B]">
+          <div className="max-w-6xl mx-auto px-4 py-8">
+            <header className="mb-6">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">
+                Waqf Monetary Value Calculator
+              </h1>
+              <p className="mt-2 max-w-3xl text-[#406A5C]">
+                Explore how small, regular gifts can grow into a substantial <span className="font-semibold">waqf capital</span> over time.
+                This tool models the <span className="font-semibold">monetary value of the waqf</span> (principal) with options for admin fees.
+              </p>
+            </header>
+
+            {/* Section 1: Choose Waqf Share */}
+            <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
+              <label className="block text-sm font-medium mb-1">Choose a Waqf Share</label>
+              <select
+                className="w-full border rounded-xl px-3 py-2"
+                value={selectedPreset || ""}
+                onChange={(e) => {
+                  const key = e.target.value;
+                  setSelectedPreset(key);
+                  const preset = sharePresets.find((p) => p.key === key);
+                  if (preset) setAmount(preset.price);
+                }}
+              >
+                <option value="">-- Select a Share --</option>
+                {sharePresets.map((p) => (
+                  <option key={p.key} value={p.key}>{p.name} (£{p.price})</option>
+                ))}
+              </select>
+            </section>
+
+            {/* Section 2: Contribution Settings */}
+            <section className="grid md:grid-cols-2 gap-4 mb-8">
+              <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
+                <label className="block text-sm font-medium mb-1">Contribution Amount (£)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={amount}
+                  onChange={(e) => { setSelectedPreset(null); setAmount(Number(e.target.value)); }}
+                  className="w-full border rounded-xl px-3 py-2"
+                />
+
+                <label className="block text-sm font-medium mt-4 mb-1">Frequency</label>
+                <div className="flex flex-wrap gap-2">
+                  {frequencies.map((f) => (
+                    <button
+                      key={f.key}
+                      onClick={() => setFrequency(f.key)}
+                      className={`px-3 py-1.5 rounded-full border ${frequency===f.key ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                <label className="block text-sm font-medium mt-4 mb-1">Years</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={years}
+                  onChange={(e)=>setYears(Number(e.target.value))}
+                  className="w-full border rounded-xl px-3 py-2"
+                />
+              </div>
+
+              <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Apply Admin Fees</p>
+                    <p className="text-xs text-[#406A5C]">10% of each contribution and 10% of income. Toggle off if covered by Support Fund.</p>
+                  </div>
+                  <button
+                    onClick={()=>setApplyAdminFees(v=>!v)}
+                    className={`px-3 py-1.5 rounded-full border ${applyAdminFees ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
+                  >
+                    {applyAdminFees ? "On" : "Off"}
+                  </button>
+                </div>
+
+                <div className="mt-4 text-sm text-[#02314B] space-y-1">
+                  <p>Final Principal: <span className="font-semibold">{fmtGBP(last.principal)}</span></p>
+                  <p>Total Contributed: {fmtGBP(last.cumulativeContrib)}</p>
+                  <p>Admin Fees Total: {fmtGBP(last.cumulativeAdminFees)}</p>
+                  <p>Income Generated: {fmtGBP(last.cumulativeIncome)}</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 3: Chart */}
+            <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-[#8B003A]">Waqf Value Over Time</h2>
+                <div className="text-sm text-[#406A5C] text-right">
+                  Model assumptions: <span className="font-medium">8% annual income</span> and <span className="font-medium">10% reinvestment</span>
+                </div>
+              </div>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={series} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F4E1C3" />
+                    <XAxis dataKey="month" tickFormatter={(m)=>`Y${Math.floor(m/12)}`} stroke="#02314B" />
+                    <YAxis tickFormatter={(v)=>v.toFixed(0)} interval={0} domain={[0, 'auto']} tickCount={10} stroke="#02314B" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#F4E1C3", color: "#02314B" }}
+                      formatter={(value, name) => [fmtGBP(Number(value)), name]}
+                      labelFormatter={(m)=>`Month ${m} (Year ${(m/12).toFixed(1)})`}
+                    />
+                    <Legend />
+                    <Line type="monotone" dataKey="principal" name="Principal" dot={false} strokeWidth={2} />
+                    <Line type="monotone" dataKey="cumulativeIncome" name="Income Generated" dot={false} strokeWidth={2} stroke="green" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            {/* Explainer */}
+            <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
+              <details>
+                <summary className="cursor-pointer font-semibold text-[#8B003A]">How the model works</summary>
+                <div className="mt-2 text-sm text-[#02314B] space-y-2">
+                  <p><strong>Contributions:</strong> Based on your frequency. If admin fees are applied, 10% of each contribution is taken as an initial fee; the remaining 90% is added to principal.</p>
+                  <p><strong>Income & compounding:</strong> Each month, income = principal × (annual return / 12). If admin fees are applied, 10% of that income is deducted. The remainder is split into reinvestment (increasing principal) and distribution (paid out). Here, reinvestment is fixed at 10%.</p>
+                  <p><strong>Waqf note:</strong> Classical waqf aims to preserve capital and deploy income. With a fixed reinvestment rate of 10%, the capital gradually grows while still distributing most income.</p>
+                </div>
+              </details>
+            </section>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<WaqfValueCalculator />);
+  </script>
+</body>
+</html>
