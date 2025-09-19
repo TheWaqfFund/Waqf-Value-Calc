@@ -49,15 +49,18 @@
     ];
 
     function App() {
+      // Inputs
       const [amount, setAmount] = useState(3);
       const [frequency, setFrequency] = useState("monthly");
       const [years, setYears] = useState(30);
       const [applyAdminFees, setApplyAdminFees] = useState(true);
       const [selectedPreset, setSelectedPreset] = useState(null);
+      // Hover state for stacked bars
       const [hoveredSeries, setHoveredSeries] = useState(null);
 
-      const annualReturnPct = 8;
-      const reinvestPct = 10;
+      // Annualised model
+      const annualReturnPct = 8;   // income rate
+      const reinvestPct     = 10;  // % of gross income reinvested
 
       const { series, finalStats } = useMemo(() => {
         let principal = 0;
@@ -69,11 +72,11 @@
 
         const annualContribution = (() => {
           switch (frequency) {
-            case "oneoff": return amount;
+            case "oneoff":  return amount;      // contributes in year 1 only
             case "monthly": return amount * 12;
-            case "weekly": return amount * 52;
-            case "daily": return amount * 365;
-            default: return 0;
+            case "weekly":  return amount * 52;
+            case "daily":   return amount * 365;
+            default:         return 0;
           }
         })();
 
@@ -89,23 +92,32 @@
           const income = principal * (annualReturnPct / 100);
           cumulativeIncome += income;
 
-          const adminOnIncome = applyAdminFees ? 0.10 * income : 0;
+          const adminOnIncome = applyAdminFees ? 0.10 * income : 0;         // 10% admin on income
           cumulativeAdminFees += adminOnIncome;
-          const reinvestAmt = (reinvestPct / 100) * income;
-          const distributeAmt = income - reinvestAmt - adminOnIncome;
+          const reinvestAmt = (reinvestPct / 100) * income;                 // 10% reinvest
+          const distributeAmt = income - reinvestAmt - adminOnIncome;       // 80% to projects
 
-          principal += reinvestAmt;
+          principal += reinvestAmt;              // principal grows only by reinvested portion
           cumulativeDistributed += distributeAmt;
 
           data.push({
             year: y + 1,
             principal,
             cumulativeIncome,
-            totalValue: principal + cumulativeIncome
+            totalValue: principal + cumulativeIncome,
           });
         }
 
-        return { series: data, finalStats: { principal, cumulativeContrib, cumulativeAdminFees, cumulativeIncome, cumulativeDistributed } };
+        return {
+          series: data,
+          finalStats: {
+            principal,
+            cumulativeContrib,
+            cumulativeAdminFees,
+            cumulativeIncome,
+            cumulativeDistributed,
+          },
+        };
       }, [amount, frequency, years, applyAdminFees]);
 
       const last = finalStats;
@@ -114,13 +126,16 @@
         <div className="min-h-screen w-full text-[#02314B]">
           <div className="max-w-6xl mx-auto px-4 py-8">
             <header className="mb-6">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">Waqf Monetary Value Calculator</h1>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">
+                Waqf Monetary Value Calculator
+              </h1>
               <p className="mt-2 max-w-3xl text-black">
                 Explore how small, regular gifts can grow into a substantial <span className="font-semibold">waqf capital</span> over time.
                 This tool models the <span className="font-semibold">monetary value of the waqf</span> (principal) with options for admin fees.
               </p>
             </header>
 
+            {/* Section 1: Choose Waqf Share */}
             <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
               <label className="block text-sm font-medium mb-1">Choose a Waqf Share</label>
               <select
@@ -140,27 +155,35 @@
               </select>
             </section>
 
+            {/* Section 2: Contribution Settings */}
             <section className="grid md:grid-cols-2 gap-4 mb-8">
               <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
                 <label className="block text-sm font-medium mb-1">Contribution Amount (£)</label>
-                <input type="number" min={0} step={0.5} value={amount}
-                       onChange={(e) => { setSelectedPreset(null); setAmount(Number(e.target.value)); }}
-                       className="w-full border rounded-xl px-3 py-2" />
+                <input
+                  type="number" min={0} step={0.5} value={amount}
+                  onChange={(e) => { setSelectedPreset(null); setAmount(Number(e.target.value)); }}
+                  className="w-full border rounded-xl px-3 py-2"
+                />
 
                 <label className="block text-sm font-medium mt-4 mb-1">Frequency</label>
                 <div className="flex flex-wrap gap-2">
                   {frequencies.map((f) => (
-                    <button key={f.key} onClick={() => setFrequency(f.key)}
-                            className={`px-3 py-1.5 rounded-full border ${frequency===f.key?"bg-[#8B003A] text-white":"bg-white border-[#8B003A] text-[#8B003A]"}`}>
+                    <button
+                      key={f.key}
+                      onClick={() => setFrequency(f.key)}
+                      className={`px-3 py-1.5 rounded-full border ${frequency===f.key ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
+                    >
                       {f.label}
                     </button>
                   ))}
                 </div>
 
                 <label className="block text-sm font-medium mt-4 mb-1">Years</label>
-                <input type="number" min={1} max={100} value={years}
-                       onChange={(e)=>setYears(Number(e.target.value))}
-                       className="w-full border rounded-xl px-3 py-2" />
+                <input
+                  type="number" min={1} max={100} value={years}
+                  onChange={(e)=>setYears(Number(e.target.value))}
+                  className="w-full border rounded-xl px-3 py-2"
+                />
               </div>
 
               <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
@@ -169,9 +192,11 @@
                     <p className="text-sm font-medium">Apply Admin Fees</p>
                     <p className="text-xs text-[#02314B]">10% of each contribution and 10% of income. Toggle off if covered by Support Fund.</p>
                   </div>
-                  <button onClick={()=>setApplyAdminFees(v=>!v)}
-                          className={`px-3 py-1.5 rounded-full border ${applyAdminFees?"bg-[#8B003A] text-white":"bg-white border-[#8B003A] text-[#8B003A]"}`}>
-                    {applyAdminFees?"On":"Off"}
+                  <button
+                    onClick={()=>setApplyAdminFees(v=>!v)}
+                    className={`px-3 py-1.5 rounded-full border ${applyAdminFees ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
+                  >
+                    {applyAdminFees ? "On" : "Off"}
                   </button>
                 </div>
 
@@ -184,6 +209,7 @@
               </div>
             </section>
 
+            {/* Section 3: Chart */}
             <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold text-black">Waqf Value Over Time</h2>
