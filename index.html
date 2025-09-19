@@ -199,8 +199,20 @@
                     <YAxis tickFormatter={(v)=>v.toFixed(0)} interval={0} domain={[0, 'auto']} tickCount={10} stroke="black" />
                     <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: "#F4F1E6", color: "#02314B" }} formatter={(value, name) => [fmtGBP(Number(value)), name]} labelFormatter={(y)=>`Year ${y}`} />
                     <Legend
-  formatter={(value) => (<span style={{ color: 'black' }}>{value}</span>)}
-/>
+                      content={(props) => {
+                        const { payload } = props;
+                        return (
+                          <ul className="flex gap-6">
+                            {payload && payload.map((item) => (
+                              <li key={item.value} className="flex items-center gap-2">
+                                <span style={{ display: 'inline-block', width: 10, height: 10, backgroundColor: item.color, borderRadius: '50%' }}></span>
+                                <span style={{ color: 'black' }}>{item.value}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      }}
+                    />
                     <Bar dataKey="principal" name="Principal" stackId="a" fill="#679CBE" fillOpacity={hoveredSeries===null || hoveredSeries==='principal' ? 1 : 0.25} onMouseEnter={() => setHoveredSeries('principal')} onMouseLeave={() => setHoveredSeries(null)} />
                     <Bar dataKey="cumulativeIncome" name="Income Generated" stackId="a" fill="#E3AF64" fillOpacity={hoveredSeries===null || hoveredSeries==='income' ? 1 : 0.25} onMouseEnter={() => setHoveredSeries('income')} onMouseLeave={() => setHoveredSeries(null)} />
                   </BarChart>
