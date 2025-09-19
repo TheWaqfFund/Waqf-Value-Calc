@@ -229,7 +229,7 @@
                       formatter={(value, name) => [fmtGBP(Number(value)), name]}
                       labelFormatter={(y)=>`Year ${y}`}
                     />
-                    <Legend />
+                    <Legend wrapperStyle={{ color: 'black' }} />
                     <Bar
                       dataKey="principal"
                       name="Principal"
