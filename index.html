@@ -197,7 +197,12 @@
                     <CartesianGrid strokeDasharray="3 3" stroke="#F4E1C3" />
                     <XAxis dataKey="year" tickFormatter={(y)=>`Y${y}`} stroke="black" />
                     <YAxis tickFormatter={(v)=>v.toFixed(0)} interval={0} domain={[0, 'auto']} tickCount={10} stroke="black" />
-                    <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: "#F4F1E6", color: "#02314B" }} formatter={(value, name) => [fmtGBP(Number(value)), name]} labelFormatter={(y)=>`Year ${y}`} />
+                    <Tooltip
+                      cursor={{ fill: 'transparent' }}
+                      contentStyle={{ backgroundColor: "#F4F1E6", color: "black" }}
+                      formatter={(value, name) => [fmtGBP(Number(value)), <span style={{ color: 'black' }}>{name}</span>]}
+                      labelFormatter={(y)=>`Year ${y}`}
+                    />
                     <Legend
                       content={(props) => {
                         const { payload } = props;
