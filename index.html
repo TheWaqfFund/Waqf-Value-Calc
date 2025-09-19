@@ -230,6 +230,8 @@
                       labelFormatter={(y)=>`Year ${y}`}
                     />
                     <Legend wrapperStyle={{ color: 'black' }} />
+                    <XAxis dataKey="year" tickFormatter={(y)=>`Y${y}`} stroke="black" />
+                    <YAxis tickFormatter={(v)=>v.toFixed(0)} interval={0} domain={[0, 'auto']} tickCount={10} stroke="black" />
                     <Bar
                       dataKey="principal"
                       name="Principal"
