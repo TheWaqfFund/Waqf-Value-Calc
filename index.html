@@ -54,6 +54,7 @@
       const [years, setYears] = useState(30);
       const [applyAdminFees, setApplyAdminFees] = useState(true);
       const [selectedPreset, setSelectedPreset] = useState(null);
+      const [hoveredSeries, setHoveredSeries] = useState(null);
 
       const annualReturnPct = 8;
       const reinvestPct = 10;
@@ -114,7 +115,7 @@
           <div className="max-w-6xl mx-auto px-4 py-8">
             <header className="mb-6">
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">Waqf Monetary Value Calculator</h1>
-              <p className="mt-2 max-w-3xl text-[#406A5C]">
+              <p className="mt-2 max-w-3xl text-black">
                 Explore how small, regular gifts can grow into a substantial <span className="font-semibold">waqf capital</span> over time.
                 This tool models the <span className="font-semibold">monetary value of the waqf</span> (principal) with options for admin fees.
               </p>
@@ -166,7 +167,7 @@
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">Apply Admin Fees</p>
-                    <p className="text-xs text-[#406A5C]">10% of each contribution and 10% of income. Toggle off if covered by Support Fund.</p>
+                    <p className="text-xs text-[#02314B]">10% of each contribution and 10% of income. Toggle off if covered by Support Fund.</p>
                   </div>
                   <button onClick={()=>setApplyAdminFees(v=>!v)}
                           className={`px-3 py-1.5 rounded-full border ${applyAdminFees?"bg-[#8B003A] text-white":"bg-white border-[#8B003A] text-[#8B003A]"}`}>
@@ -185,8 +186,8 @@
 
             <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-[#8B003A]">Waqf Value Over Time</h2>
-                <div className="text-sm text-[#406A5C] text-right">
+                <h2 className="text-lg font-semibold text-black">Waqf Value Over Time</h2>
+                <div className="text-sm text-black text-right">
                   Model assumptions: <span className="font-medium">8% annual income</span> and <span className="font-medium">10% reinvestment</span>
                 </div>
               </div>
@@ -196,10 +197,31 @@
                     <CartesianGrid strokeDasharray="3 3" stroke="#F4E1C3" />
                     <XAxis dataKey="year" tickFormatter={(y)=>`Y${y}`} stroke="#02314B" />
                     <YAxis tickFormatter={(v)=>v.toFixed(0)} interval={0} domain={[0, 'auto']} tickCount={10} stroke="#02314B" />
-                    <Tooltip contentStyle={{ backgroundColor: "#F4E1C3", color: "#02314B" }} formatter={(value, name) => [fmtGBP(Number(value)), name]} labelFormatter={(y)=>`Year ${y}`} />
+                    <Tooltip
+                      cursor={{ fill: 'transparent' }}
+                      contentStyle={{ backgroundColor: "#F4E1C3", color: "#02314B" }}
+                      formatter={(value, name) => [fmtGBP(Number(value)), name]}
+                      labelFormatter={(y)=>`Year ${y}`}
+                    />
                     <Legend />
-                    <Bar dataKey="principal" name="Principal" stackId="a" fill="#679CBE"  fillOpacity={hoveredSeries===null || hoveredSeries==='principal' ? 1 : 0.25}  onMouseEnter={() => setHoveredSeries('principal')} onMouseLeave={() => setHoveredSeries(null)} />
-                    <Bar dataKey="cumulativeIncome" name="Income Generated" stackId="a" fill="#E3AF64" fillOpacity={hoveredSeries===null || hoveredSeries==='income' ? 1 : 0.25} onMouseEnter={() => setHoveredSeries('income')} onMouseLeave={() => setHoveredSeries(null) />
+                    <Bar
+                      dataKey="principal"
+                      name="Principal"
+                      stackId="a"
+                      fill="#679CBE"
+                      fillOpacity={hoveredSeries===null || hoveredSeries==='principal' ? 1 : 0.25}
+                      onMouseEnter={() => setHoveredSeries('principal')}
+                      onMouseLeave={() => setHoveredSeries(null)}
+                    />
+                    <Bar
+                      dataKey="cumulativeIncome"
+                      name="Income Generated"
+                      stackId="a"
+                      fill="#E3AF64"
+                      fillOpacity={hoveredSeries===null || hoveredSeries==='income' ? 1 : 0.25}
+                      onMouseEnter={() => setHoveredSeries('income')}
+                      onMouseLeave={() => setHoveredSeries(null)}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
