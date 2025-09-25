@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Waqf Monetary Value Calculator</title>
+  <title>Waqf Monetary Value Calculator — Gift Aid</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Tailwind -->
+  <!-- Tailwind (for GH Pages demo) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React -->
   <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- PropTypes (required for Recharts UMD) -->
+  <!-- PropTypes (required by Recharts UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/prop-types@15/prop-types.min.js"></script>
-  <!-- Recharts (global object, pinned version) -->
+  <!-- Recharts UMD -->
   <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
-  <!-- Babel -->
+  <!-- Babel for inline JSX (demo only) -->
   <script src="https://cdn.jsdelivr.net/npm/babel-standalone@6.26.0/babel.min.js"></script>
 </head>
 <body class="min-h-screen bg-[#F4F1E6]">
@@ -49,64 +49,89 @@
     ];
 
     function App() {
+      // Inputs
       const [amount, setAmount] = useState(3);
       const [frequency, setFrequency] = useState("monthly");
       const [years, setYears] = useState(30);
       const [applyAdminFees, setApplyAdminFees] = useState(true);
+      const [applyGiftAid, setApplyGiftAid] = useState(true); // NEW: Gift Aid toggle
       const [selectedPreset, setSelectedPreset] = useState(null);
       const [hoveredSeries, setHoveredSeries] = useState(null);
 
-      const annualReturnPct = 8;
-      const reinvestPct = 10;
+      // Fixed model
+      const annualReturnPct = 8;   // gross income rate
+      const reinvestPct     = 10;  // % of gross income reinvested
 
       const { series, finalStats } = useMemo(() => {
         let principal = 0;
-        let cumulativeContrib = 0;
-        let cumulativeAdminFees = 0;
-        let cumulativeIncome = 0;
-        let cumulativeDistributed = 0;
+        let cumulativeContrib = 0;        // donor out-of-pocket
+        let cumulativeGiftAid = 0;        // Gift Aid added
+        let cumulativeAdminFees = 0;      // on contribution + income
+        let cumulativeIncome = 0;         // gross income from principal
+        let cumulativeDistributed = 0;    // to projects (80% when fees on)
+
         const data = [];
 
-        const annualContribution = (() => {
+        // Base annual contribution from user input
+        const baseAnnualContribution = (() => {
           switch (frequency) {
-            case "oneoff": return amount;
+            case "oneoff":  return amount;      // year 1 only
             case "monthly": return amount * 12;
-            case "weekly": return amount * 52;
-            case "daily": return amount * 365;
-            default: return 0;
+            case "weekly":  return amount * 52;
+            case "daily":   return amount * 365;
+            default:         return 0;
           }
         })();
 
         for (let y = 0; y < years; y++) {
-          const contrib = (frequency === "oneoff" && y > 0) ? 0 : annualContribution;
-          if (contrib > 0) {
-            cumulativeContrib += contrib;
-            const initialFee = applyAdminFees ? 0.10 * contrib : 0;
-            cumulativeAdminFees += initialFee;
-            principal += (contrib - initialFee);
+          // Contributions per year
+          const baseContrib = (frequency === "oneoff" && y > 0) ? 0 : baseAnnualContribution;
+          if (baseContrib > 0) {
+            // Donor pays baseContrib; Gift Aid adds +25% if applied
+            cumulativeContrib += baseContrib;
+            const giftAid = applyGiftAid ? baseContrib * 0.25 : 0;
+            cumulativeGiftAid += giftAid;
+
+            const grossContrib = baseContrib + giftAid; // amount entering charity books
+            const contribAdmin = applyAdminFees ? 0.10 * grossContrib : 0;
+            cumulativeAdminFees += contribAdmin;
+
+            principal += (grossContrib - contribAdmin); // net added to principal
           }
 
+          // Investment year: income from principal
           const income = principal * (annualReturnPct / 100);
           cumulativeIncome += income;
 
           const adminOnIncome = applyAdminFees ? 0.10 * income : 0;
           cumulativeAdminFees += adminOnIncome;
-          const reinvestAmt = (reinvestPct / 100) * income;
-          const distributeAmt = income - reinvestAmt - adminOnIncome;
 
-          principal += reinvestAmt;
+          const reinvestAmt = (reinvestPct / 100) * income; // 10% of GROSS income
+          const distributeAmt = income - reinvestAmt - adminOnIncome; // 80% to projects if fees on
+
+          principal += reinvestAmt; // principal grows only by reinvested income
           cumulativeDistributed += distributeAmt;
 
           data.push({
             year: y + 1,
             principal,
             cumulativeIncome,
-            totalValue: principal + cumulativeIncome
+            totalValue: principal + cumulativeIncome,
           });
         }
 
-        return { series: data, finalStats: { principal, cumulativeContrib, cumulativeAdminFees, cumulativeIncome, cumulativeDistributed } };
-      }, [amount, frequency, years, applyAdminFees]);
+        return {
+          series: data,
+          finalStats: {
+            principal,
+            cumulativeContrib,
+            cumulativeGiftAid,
+            cumulativeAdminFees,
+            cumulativeIncome,
+            cumulativeDistributed,
+          },
+        };
+      }, [amount, frequency, years, applyAdminFees, applyGiftAid]);
 
       const last = finalStats;
 
@@ -114,13 +139,14 @@
         <div className="min-h-screen w-full text-[#02314B]">
           <div className="max-w-6xl mx-auto px-4 py-8">
             <header className="mb-6">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">Waqf Monetary Value Calculator</h1>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#8B003A]">Waqf Monetary Value Calculator — Gift Aid</h1>
               <p className="mt-2 max-w-3xl text-black">
-                Explore how small, regular gifts can grow into a substantial <span className="font-semibold">waqf capital</span> over time.
-                This tool models the <span className="font-semibold">monetary value of the waqf</span> (principal) with options for admin fees.
+                This version shows the effect of <span className="font-semibold">Gift Aid (+25%)</span> on contributions before fees, keeping
+                income at <span className="font-semibold">8%</span> and reinvestment at <span className="font-semibold">10%</span>.
               </p>
             </header>
 
+            {/* Section 1: Choose Waqf Share */}
             <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
               <label className="block text-sm font-medium mb-1">Choose a Waqf Share</label>
               <select
@@ -140,50 +166,75 @@
               </select>
             </section>
 
+            {/* Section 2: Contribution Settings */}
             <section className="grid md:grid-cols-2 gap-4 mb-8">
               <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
                 <label className="block text-sm font-medium mb-1">Contribution Amount (£)</label>
-                <input type="number" min={0} step={0.5} value={amount}
-                       onChange={(e) => { setSelectedPreset(null); setAmount(Number(e.target.value)); }}
-                       className="w-full border rounded-xl px-3 py-2" />
+                <input
+                  type="number" min={0} step={0.5} value={amount}
+                  onChange={(e) => { setSelectedPreset(null); setAmount(Number(e.target.value)); }}
+                  className="w-full border rounded-xl px-3 py-2"
+                />
 
                 <label className="block text-sm font-medium mt-4 mb-1">Frequency</label>
                 <div className="flex flex-wrap gap-2">
                   {frequencies.map((f) => (
-                    <button key={f.key} onClick={() => setFrequency(f.key)}
-                            className={`px-3 py-1.5 rounded-full border ${frequency===f.key?"bg-[#8B003A] text-white":"bg-white border-[#8B003A] text-[#8B003A]"}`}>
+                    <button
+                      key={f.key}
+                      onClick={() => setFrequency(f.key)}
+                      className={`px-3 py-1.5 rounded-full border ${frequency===f.key ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
+                    >
                       {f.label}
                     </button>
                   ))}
                 </div>
 
                 <label className="block text-sm font-medium mt-4 mb-1">Years</label>
-                <input type="number" min={1} max={100} value={years}
-                       onChange={(e)=>setYears(Number(e.target.value))}
-                       className="w-full border rounded-xl px-3 py-2" />
+                <input
+                  type="number" min={1} max={100} value={years}
+                  onChange={(e)=>setYears(Number(e.target.value))}
+                  className="w-full border rounded-xl px-3 py-2"
+                />
               </div>
 
               <div className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Apply Admin Fees</p>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <p className="text-sm font-medium">Apply Admin Fees</p>
+                      <button
+                        onClick={()=>setApplyAdminFees(v=>!v)}
+                        className={`px-3 py-1.5 rounded-full border ${applyAdminFees ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
+                      >
+                        {applyAdminFees ? "On" : "Off"}
+                      </button>
+                    </div>
                     <p className="text-xs text-[#02314B]">10% of each contribution and 10% of income. Toggle off if covered by Support Fund.</p>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <p className="text-sm font-medium">Apply Gift Aid (+25%)</p>
+                      <button
+                        onClick={()=>setApplyGiftAid(v=>!v)}
+                        className={`px-3 py-1.5 rounded-full border ${applyGiftAid ? "bg-[#8B003A] text-white" : "bg-white border-[#8B003A] text-[#8B003A]"}`}
+                      >
+                        {applyGiftAid ? "On" : "Off"}
+                      </button>
+                    </div>
+                    <p className="text-xs text-[#02314B]">Adds 25% to eligible donations before fees (UK Gift Aid).</p>
                   </div>
-                  <button onClick={()=>setApplyAdminFees(v=>!v)}
-                          className={`px-3 py-1.5 rounded-full border ${applyAdminFees?"bg-[#8B003A] text-white":"bg-white border-[#8B003A] text-[#8B003A]"}`}>
-                    {applyAdminFees?"On":"Off"}
-                  </button>
                 </div>
 
                 <div className="mt-4 text-sm text-[#02314B] space-y-1">
                   <p>Final Principal: <span className="font-semibold">{fmtGBP(last.principal)}</span></p>
-                  <p>Total Contributed: {fmtGBP(last.cumulativeContrib)}</p>
+                  <p>Total Contributed (donor): {fmtGBP(last.cumulativeContrib)}</p>
+                  <p>Gift Aid Added: {fmtGBP(last.cumulativeGiftAid)}</p>
                   <p>Admin Fees Total: {fmtGBP(last.cumulativeAdminFees)}</p>
                   <p>Income Generated: {fmtGBP(last.cumulativeIncome)}</p>
                 </div>
               </div>
             </section>
 
+            {/* Section 3: Chart */}
             <section className="bg-white rounded-2xl border border-[#F4E1C3] shadow p-4 mb-8">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold text-black">Waqf Value Over Time</h2>
@@ -218,8 +269,24 @@
                         );
                       }}
                     />
-                    <Bar dataKey="principal" name="Principal" stackId="a" fill="#679CBE" fillOpacity={hoveredSeries===null || hoveredSeries==='principal' ? 1 : 0.25} onMouseEnter={() => setHoveredSeries('principal')} onMouseLeave={() => setHoveredSeries(null)} />
-                    <Bar dataKey="cumulativeIncome" name="Income Generated" stackId="a" fill="#E3AF64" fillOpacity={hoveredSeries===null || hoveredSeries==='income' ? 1 : 0.25} onMouseEnter={() => setHoveredSeries('income')} onMouseLeave={() => setHoveredSeries(null)} />
+                    <Bar
+                      dataKey="principal"
+                      name="Principal"
+                      stackId="a"
+                      fill="#679CBE"
+                      fillOpacity={hoveredSeries===null || hoveredSeries==='principal' ? 1 : 0.25}
+                      onMouseEnter={() => setHoveredSeries('principal')}
+                      onMouseLeave={() => setHoveredSeries(null)}
+                    />
+                    <Bar
+                      dataKey="cumulativeIncome"
+                      name="Income Generated"
+                      stackId="a"
+                      fill="#E3AF64"
+                      fillOpacity={hoveredSeries===null || hoveredSeries==='income' ? 1 : 0.25}
+                      onMouseEnter={() => setHoveredSeries('income')}
+                      onMouseLeave={() => setHoveredSeries(null)}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -229,9 +296,8 @@
               <details>
                 <summary className="cursor-pointer font-semibold text-[#8B003A]">How the model works</summary>
                 <div className="prose max-w-none mt-2 text-sm text-[#02314B]">
-                  <p><strong>Contributions:</strong> Based on your frequency. If admin fees are applied, 10% of each contribution is taken as an initial fee; the remaining 90% is added to principal.</p>
-                  <p><strong>Income & compounding:</strong> Each year, income = principal × annual return. If admin fees are applied, 10% of that income is also taken. The remainder is split into reinvestment (10% of gross income) and distribution (80%).</p>
-                  <p><strong>Waqf note:</strong> Classical waqf aims to preserve capital and deploy income. With a fixed reinvestment rate of 10%, the capital gradually grows while still distributing most income.</p>
+                  <p><strong>Contributions & Gift Aid:</strong> Gift Aid adds 25% to eligible donations before admin fees. Fees (if applied) are 10% of gross contributions and 10% of income.</p>
+                  <p><strong>Income & Compounding:</strong> Each year, income = principal × 8%. Of that, 10% is reinvested and 10% (if fees on) is admin; the remainder is distributed.</p>
                 </div>
               </details>
             </section>
@@ -240,7 +306,7 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
 </html>
